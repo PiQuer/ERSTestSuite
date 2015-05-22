@@ -12,11 +12,38 @@ import WaitForKey as key
 import numpy as np
 import os
 import datetime
+import logging
+import ConfigParser
+import StringIO
+
+# Setup logger for this module
+logger = logging.getLogger(__name__)
+handler=logging.StreamHandler()
+handler.setFormatter(logging.Formatter(fmt='%(asctime)s %(levelname)s: %(message)s'))
+logger.setLevel(logging.INFO)
+logger.handlers=[handler]
+logger.propagate=False
 
 shortsleep = 0.1
 longsleep = 0.9
 fastsleep = 0.03
 confidence = 0.95
+
+def config_parser(files=None):
+  if files is None: files=[]
+  if type(files) is str: files=[files]
+  defaults= """
+[Config]
+basedir={basedir}
+packagedir={packagedir}
+display=:1
+""".format(basedir=os.path.expanduser('~/.ersTestSuite'),packagedir=os.path.dirname(__file__))
+  config = ConfigParser.SafeConfigParser()
+  config.optionxform = str
+  config.readfp(StringIO.StringIO(defaults))
+  config.read(map(os.path.expanduser,files))
+  return config
+
 
 templates = {}
 """A dictionary with all template images used in image recognition.
