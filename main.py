@@ -29,7 +29,7 @@ def execute(filename):
     if command[0]=='click':
       CI.clickto(command[1])
     elif command[0]=='waitfor':
-      CI.waitforelement(command[1], timeout=command[2]) 
+      CI.waitforelement(command[1], timeout=command[2])
 
 
 def main():
