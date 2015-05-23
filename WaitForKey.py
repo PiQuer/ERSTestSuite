@@ -47,4 +47,4 @@ def read_single_keypress():
   return ret
 
 if __name__ == "__main__":
-  print read_single_keypress()
+  print(read_single_keypress())

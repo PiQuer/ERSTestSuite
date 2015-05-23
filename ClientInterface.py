@@ -4,23 +4,22 @@ Created on 22.05.2015
 @author: Raimar Sandner
 '''
 
-import autopy
 import time
 import math
-import cv2
 import WaitForKey as key
-import numpy as np
 import os
 import datetime
 import logging
 import ConfigParser
 import StringIO
+import numpy as np
+import cv2
 
 # Setup logger for this module
 logger = logging.getLogger(__name__)
 handler=logging.StreamHandler()
 handler.setFormatter(logging.Formatter(fmt='%(asctime)s %(levelname)s: %(message)s'))
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 logger.handlers=[handler]
 logger.propagate=False
 
@@ -28,6 +27,8 @@ shortsleep = 0.1
 longsleep = 0.9
 fastsleep = 0.03
 confidence = 0.95
+
+Config={}
 
 def config_parser(files=None):
   if files is None: files=[]
@@ -37,13 +38,22 @@ def config_parser(files=None):
 basedir={basedir}
 packagedir={packagedir}
 display=:1
-""".format(basedir=os.path.expanduser('~/.ersTestSuite'),packagedir=os.path.dirname(__file__))
+""".format(basedir=os.path.abspath(os.path.expanduser('~/.ersTestSuite')),
+           packagedir=os.path.abspath(os.path.dirname(__file__)))
   config = ConfigParser.SafeConfigParser()
   config.optionxform = str
   config.readfp(StringIO.StringIO(defaults))
   config.read(map(os.path.expanduser,files))
   return config
 
+def init():
+  global Config,gui
+  config = config_parser()
+  Config=dict(config.items('Config'))
+  if Config['display']:
+    os.environ['DISPLAY']=Config['display']
+  import pyautogui as gui
+  Config['imagedir']=os.path.join(Config['packagedir'],'images')
 
 templates = {}
 """A dictionary with all template images used in image recognition.
@@ -339,35 +349,27 @@ class Point(tuple):
     return math.sqrt((self[0] - other[0]) ** 2 + (self[1] - other[1]) ** 2)
 
 
-def _moveto(point, movesleep=shortsleep, offset=Point(0, 0), **kwargs):
-  movefunc = autopy.mouse.smooth_move if kwargs.get(
-      'smooth') else autopy.mouse.move
-  movefunc((point + offset)[0], (point + offset)[1])
-  time.sleep(movesleep)
+def _moveto(point, movesleep=shortsleep, smooth=False, offset=Point(0, 0)):
+  newpoint=point+offset
+  gui.moveTo(newpoint[0],newpoint[1],1 if smooth else 0, pause=movesleep)
 
 
 def _mousedown(s=shortsleep):
-  autopy.mouse.toggle(True)
-  time.sleep(s)
-
+  gui.mouseDown(pause=s)
 
 def _mouseup(s=shortsleep):
-  autopy.mouse.toggle(False)
-  time.sleep(s)
-
+  gui.mouseUp(pause=s)
 
 def _click(clicksleep=longsleep, **kwargs):
-  autopy.mouse.click()
-  time.sleep(clicksleep)
+  gui.click(pause=clicksleep)
 
 
 def _keypress(i):
-  autopy.key.tap(str(i))
+  gui.press(str(i))
 
 
 def _type_string(s, typesleep=shortsleep):
-  autopy.key.type_string(s)
-  time.sleep(typesleep)
+  gui.typewrite(s,interval=typesleep)
 
 
 def _mark_all(spot):
@@ -382,16 +384,14 @@ def _clickto(point, **kwargs):
 
 
 def _drag(point1, point2, smooth=False, **kwargs):
-  _moveto(point1, **kwargs)
-  _mousedown(**kwargs)
-  _moveto(point2, smooth=smooth, **kwargs)
-  _mouseup(**kwargs)
-
+  _moveto(point1,smooth=smooth)
+  gui.dragTo(point2[0],point2[1],1 if smooth else 0)
+  
 
 def _getpos(offset=Point(0, 0)):
   if isinstance(offset, str):
     offset = spots[offset]
-  return Point(*autopy.mouse.get_pos()) - offset
+  return Point(*gui.position()) - offset
 
 
 def _waitforelement(positive, negative=[], timeout=120, sleep=0.5):
@@ -410,10 +410,10 @@ def _waitforelement(positive, negative=[], timeout=120, sleep=0.5):
   raise Timeout("Timeout beim Warten auf Steuerelement: " + positive.name)
 
 def _imreadRGB(filename):
-  return cv2.imread(os.path.expanduser(filename))
+  return gui.Image.open(os.path.join(Config['imagedir'],filename),'r')
 
-def _imwriteRGB(filename, im):
-  cv2.imwrite(os.path.expanduser(filename), im)
+def _imwriteRGB(filename, im, absolute=False):
+  im.save(os.path.join(Config['imagedir'],filename) if not absolute else os.path.expanduser(filename))
 
 def grab(delay=0, bbox=None):
   """Make a screenshot of the screen. This is the basis for methods like :func:`ClientElement.isvisible()`.
@@ -426,21 +426,19 @@ def grab(delay=0, bbox=None):
   :rtype: :class:`numpy.ndarray`
   """
   for i in range(1, delay):
-    print `i` + ".."
+    print(str(i) + "..")
     time.sleep(1)
-  if bbox:
-    rect = (bbox[0:2], (bbox[2] - bbox[0] + 1, bbox[3] - bbox[1] + 1))
-    return autopy.bitmap.capture_screen(rect).to_numpy()
-  else:
-    im = autopy.bitmap.capture_screen().to_numpy()
-    if bbox:
-      im = im[bbox[1]:bbox[3] + 1, bbox[0]:bbox[2] + 1, :]
-    return im
+  rect = tuple(bbox[0:2])+(bbox[2] - bbox[0] + 1, bbox[3] - bbox[1] + 1) if not bbox is None else None
+  logger.debug(rect)
+  return gui.screenshot(region=rect)
 
+def _pil_to_numpy(pic):
+  return np.array(pic)
 
-def match(source, target, conf=confidence, mult=False):
-  """Image recognition: find ``target`` in ``source``.
-
+def match(target, source=None, conf=confidence, mult=False):
+  """Image recognition: find ``target`` in ``source``. Unfortunately, the implementation of
+  pyautogui is incredibly slow :(
+ 
   :param source: Image to search in.
   :type source: :class:`numpy.ndarray`
   :param target: Template to search for.
@@ -456,6 +454,14 @@ def match(source, target, conf=confidence, mult=False):
     for t in target:
       r.append(match(source, t, conf, mult))
     return r
+  if source is None:
+    source=grab()
+  if type(target) is str:
+    if not target.endswith('.png'):
+      target=target+'.png'
+    target=_imreadRGB(target)
+  source=_pil_to_numpy(source)
+  target=_pil_to_numpy(target)
   (t_height, t_width, _) = target.shape
   result = cv2.matchTemplate(source, target, cv2.TM_CCOEFF_NORMED)
   if mult:
@@ -472,6 +478,7 @@ def match(source, target, conf=confidence, mult=False):
   return sorted(r, key=lambda r: r.conf, reverse=True)
 
 
+
 def getbbox(offset=Point(0, 0), relative=False):
   """This is a convenience function for development. For the upper left and lower right
   position, this function waits for a key to be entered and records the mouse position
@@ -482,7 +489,7 @@ def getbbox(offset=Point(0, 0), relative=False):
 
   Typical usage::
 
-      >>> import siedlerbot.ClientInterface as CI
+      >>> import ClientInterface as CI
       >>> CI.autocalibration()
       >>> CI.getbbox(offset=CI.cal['handshake'])
       top left: a<enter> 
@@ -495,20 +502,20 @@ def getbbox(offset=Point(0, 0), relative=False):
     offset = spots[offset]
   if relative:
     offset = _getpos()
-  print "top left: "
+  print("top left: ")
   key.read_single_keypress()
   p1 = _getpos(offset)
-  print p1
-  print "bottom right: "
+  print(p1)
+  print("bottom right: ")
   key.read_single_keypress()
   p2 = _getpos(offset)
-  print p2
+  print(p2)
   return p1 * p2
 
 
-def savescreenshot(filename="", full=False, delay=0, bbox=()):
+def savescreenshot(filename=None, full=False, delay=0, bbox=()):
   """This is a convenience function for development. It saves a screenshot to the
-  image directory, typically siedlerbot/images inside the package directory.
+  image directory, typically images inside the package directory.
 
   :param filename: The filename where the image is saved. Prompt for a filename if empty.
   :type filename: str
@@ -520,9 +527,9 @@ def savescreenshot(filename="", full=False, delay=0, bbox=()):
   :type bbox: :class:`BBox`
 
   Typical usage::
-      >>> import siedlerbot.ClientInterface as CI
+      >>> import ClientInterface as CI
       >>> CI.autocalibration()
-      >>> CI.savescreenshot(filename="debug.bmp", delay=2, bbox=CI.bboxes['item_angebot']
+      >>> CI.savescreenshot(filename="debug.bmp", delay=2, bbox=CI.bboxes['item_angebot'])
   """
   d = delay
   if full:
@@ -533,16 +540,16 @@ def savescreenshot(filename="", full=False, delay=0, bbox=()):
     else:
       bb = bbox
     im = grab(delay=d, bbox=bb)
-  if filename == "":
+  if filename is None:
     filename = raw_input("Filename: ").strip()
-  _imwriteRGB(os.path.expanduser(filename), im)
+  _imwriteRGB(os.path.join(Config['imagedir'],filename), im)
 
 
 def stopwatch():
   now = datetime.datetime.now()
   raw_input("Stop:")
   then = datetime.datetime.now()
-  print (then - now).total_seconds()
+  print((then - now).total_seconds())
 
 
 def debugbbox(bbox, shift=None, offset=None):
@@ -551,7 +558,7 @@ def debugbbox(bbox, shift=None, offset=None):
   if shift:
     bbox = bbox + Point(*shift)
   if offset:
-    print bbox - spots[offset]
+    print(bbox - spots[offset])
   im = grab()
   im[bbox[1], bbox[0]:bbox[2] + 1, :] = 255
   im[bbox[3] + 1, bbox[0]:bbox[2] + 1, :] = 255
