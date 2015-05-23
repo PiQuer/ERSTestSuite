@@ -26,9 +26,11 @@ logger.propagate=False
 shortsleep = 0.1
 longsleep = 0.9
 fastsleep = 0.03
-confidence = 0.95
+confidence = 0.8
 
 Config={}
+
+global_bbox=None
 
 def config_parser(files=None):
   if files is None: files=[]
@@ -47,13 +49,16 @@ display=:1
   return config
 
 def init():
-  global Config,gui
-  config = config_parser()
+  global Config,gui,global_bbox
+  config = config_parser(os.path.expanduser('~/.ersTestSuite/config.txt'))
   Config=dict(config.items('Config'))
   if Config['display']:
     os.environ['DISPLAY']=Config['display']
   import pyautogui as gui
   Config['imagedir']=os.path.join(Config['packagedir'],'images')
+  left=Point(locate('logo')[0]-62,0)
+  right=Point(locate('help')[0]+80,gui.size()[1])
+  global_bbox=BBox(left[0],left[1],right[0],right[1])
 
 templates = {}
 """A dictionary with all template images used in image recognition.
@@ -63,7 +68,7 @@ cal = {}
 during calibration (see :func:`linetoCal`). The coordinates of all other elements are given
 relative to these calibration points, for example::
 
-    _clickto(cal['friend'] + Point(67, -32))
+    clickto(cal['friend'] + Point(67, -32))
 """
 spots = {}
 """This dictionary basicly contains 'named' points. It is initialized during
@@ -149,111 +154,6 @@ class Match(object):
 
   def __str__(self):
     return (self.conf, self.point).__str__()
-
-
-class ClientElement(object):
-  """A ``ClientElement`` consists of a template image and a region (bbox) where to look
-  for the template. We can then check if the element is visible and click on it.
-
-  :param bbox: The bounding box where to look for the client element.
-  :type bbox: :class:`BBox`
-  :param template: The template image which defines the visual appearance of the element.
-  :type template: :mod:`cv2`-image, :class:`numpy.ndarray`
-  :param conf: The confidence with which to look for the template (optional).
-  :type conf: float
-  :param clickpoint: Where to click on the element (optional, defaults to the center of the bbox).
-  :type clickpoint: :class:`Point` or None
-  """
-
-  def __init__(self, name, bbox, template, conf=confidence, clickpoint=None, relative=False, clickvisible=False):
-    (self.name, self.bbox, self.template, self.conf, self.clickpoint) = (
-        name, bbox, template, conf, clickpoint)
-    self._lastpos = None
-    self.lastcount = 0
-    self.relative = relative
-    self.clickvisible = clickvisible
-
-  def assertvisible(self):
-    """Assert that the client element is visible.
-
-    :raises: :class:`ElementError` if the client element is not visible.
-    """
-    if not self.isvisible():
-      raise ElementError("Steuerelement nicht sichtbar")
-
-  def assertnotvisible(self):
-    """Assert that the client element is not visible.
-
-    :raises: :class:`ElementError` if the client element is visible.
-    """
-    if self.isvisible():
-      raise ElementError("Steuerelement unerwartet sichtbar")
-
-  def isvisible(self, at=None, delay=0, conf=None):
-    """:returns: True if the client element is visible.
-
-    If the element is visible, the position where it has been found within
-    the bounding box is stored and can be accessed with :func:`lastpos`.
-    """
-    time.sleep(delay)
-    cbbox = self._currentbbox(at)
-    im = grab(bbox=cbbox)
-    localconf = self.conf if conf == None else conf
-    found = match(im, self.template, localconf, mult=True)
-    self.lastcount = len(found)
-    offset = Point(0, 0) if self.bbox == None else cbbox.offset()
-    self._lastpos = [f.point + offset for f in found]
-    self._lastconf = [f.conf for f in found]
-    return bool(self._lastpos)
-
-  def morevisible(self):
-    return bool(self._lastpos)
-
-  def click(self, blind=False, ifvisible=False, wait=None, **kwargs):
-    """Click to the element.
-
-    :param blind: Click blindly without checking that the element is visible.
-    :raises: :class:`ElementError` if ``blind`` is False and the element is not visible.
-    """
-    if wait:
-      _waitforelement(self, timeout=wait)
-    if (not blind) and (not self.isvisible()):
-      if ifvisible:
-        return
-      raise ElementError("Steuerelement nicht sichtbar: " + self.name)
-    _clickto(self._currentclickpoint(), **kwargs)
-
-  def clicklast(self, remove=False, **kwargs):
-    _clickto(self.lastpos(remove), **kwargs)
-
-  def lastpos(self, remove=False):
-    """:returns: :class:`Point` as absolute coordinate where the element was last visibile.
-    :raises: :class:`ElementError` if :func:`isvisible` previously returned False or was not called.  
-    """
-    if not self._lastpos:
-      raise ElementError("Targetposition nicht bekannt.")
-    return self._lastpos[0] if not remove else self._lastpos.pop(0)
-
-  def _currentbbox(self, at=None):
-    if self.bbox == None:
-      return None
-    if self.relative:
-      if at:
-        offset = at
-      else:
-        offset = _getpos()
-    else:
-      offset = Point(0, 0)
-    return self.bbox + offset
-
-  def _currentclickpoint(self):
-    if self.clickpoint == None:
-      if self._currentbbox() and not self.clickvisible:
-        return self._currentbbox().midpoint()
-      else:
-        return self.lastpos()
-    else:
-      return (self.clickpoint + _getpos()) if self.relative else self.clickpoint
 
 
 class BBox(tuple):
@@ -376,7 +276,8 @@ def _mark_all(spot):
   _drag(spot, spot + Point(200, 0), smooth=True)
 
 
-def _clickto(point, **kwargs):
+def clickto(point, **kwargs):
+  if type(point) is str: point=locate(point)
   args = dict(movesleep=0.3)
   args.update(kwargs)
   _moveto(point, **args)
@@ -388,26 +289,26 @@ def _drag(point1, point2, smooth=False, **kwargs):
   gui.dragTo(point2[0],point2[1],1 if smooth else 0)
   
 
-def _getpos(offset=Point(0, 0)):
+def getpos(offset=Point(0, 0)):
   if isinstance(offset, str):
-    offset = spots[offset]
+    offset = locate(offset)
   return Point(*gui.position()) - offset
 
 
-def _waitforelement(positive, negative=[], timeout=120, sleep=0.5):
+def waitforelement(positive, negative=[], timeout=120, sleep=0.5):
   """Wait for a :class:`ClientElement` ``positive`` at most ``timeout`` seconds and
   raise :class:`Timeout`. Return `True` if `positive` was found or
   `False` if one of the elements in ``negative`` was found during that time.
   """
   while timeout > 0:
-    if positive.isvisible():
+    if isvisible(positive):
       return (True, positive)
     for n in negative:
-      if n.isvisible():
+      if isvisible(n):
         return (False, n)
     time.sleep(sleep)
     timeout -= sleep
-  raise Timeout("Timeout beim Warten auf Steuerelement: " + positive.name)
+  raise Timeout("Timeout beim Warten auf Steuerelement: " + positive)
 
 def _imreadRGB(filename):
   return gui.Image.open(os.path.join(Config['imagedir'],filename),'r')
@@ -435,7 +336,7 @@ def grab(delay=0, bbox=None):
 def _pil_to_numpy(pic):
   return np.array(pic)
 
-def match(target, source=None, conf=confidence, mult=False):
+def match(target, source=None, bbox=None, conf=confidence, mult=False):
   """Image recognition: find ``target`` in ``source``. Unfortunately, the implementation of
   pyautogui is incredibly slow :(
  
@@ -449,6 +350,8 @@ def match(target, source=None, conf=confidence, mult=False):
   :type mult: bool
   :returns: A list of :class:`Match` objects. 
   """
+  if bbox is None and not global_bbox is None:
+    bbox=global_bbox
   r = []
   if type(target) == list:
     for t in target:
@@ -477,7 +380,18 @@ def match(target, source=None, conf=confidence, mult=False):
           Match(maxVal, Point(int(maxLoc[0] + t_width / 2), int(maxLoc[1] + t_height / 2))))
   return sorted(r, key=lambda r: r.conf, reverse=True)
 
+def locate(im,**kwargs):
+  try:
+    return match(im,**kwargs)[0].point
+  except IndexError:
+    raise ElementError()
 
+def isvisible(im):
+  try:
+    locate(im)
+    return True
+  except ElementError:
+    return False
 
 def getbbox(offset=Point(0, 0), relative=False):
   """This is a convenience function for development. For the upper left and lower right
@@ -501,14 +415,14 @@ def getbbox(offset=Point(0, 0), relative=False):
   if type(offset) == str:
     offset = spots[offset]
   if relative:
-    offset = _getpos()
+    offset = getpos()
   print("top left: ")
   key.read_single_keypress()
-  p1 = _getpos(offset)
+  p1 = getpos(offset)
   print(p1)
   print("bottom right: ")
   key.read_single_keypress()
-  p2 = _getpos(offset)
+  p2 = getpos(offset)
   print(p2)
   return p1 * p2
 
