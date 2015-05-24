@@ -1,2 +1,0 @@
-'click', 'logo'
-'waitfor', 'go_to_product_overview', 10
