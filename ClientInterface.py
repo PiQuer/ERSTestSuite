@@ -31,6 +31,7 @@ confidence = 0.8
 Config={}
 
 global_bbox=None
+config=None
 
 def config_parser(files=None):
   if files is None: files=[]
@@ -40,6 +41,10 @@ def config_parser(files=None):
 basedir={basedir}
 packagedir={packagedir}
 display=:1
+load_timeout=10
+[Person]
+email=disp.reg.ejc.RND@typename.de
+name=Raimar Sandner
 """.format(basedir=os.path.abspath(os.path.expanduser('~/.ersTestSuite')),
            packagedir=os.path.abspath(os.path.dirname(__file__)))
   config = ConfigParser.SafeConfigParser()
@@ -49,12 +54,13 @@ display=:1
   return config
 
 def init():
-  global Config,gui,global_bbox
+  global Config,config,gui,global_bbox
   config = config_parser(os.path.expanduser('~/.ersTestSuite/config.txt'))
   Config=dict(config.items('Config'))
   if Config['display']:
     os.environ['DISPLAY']=Config['display']
   import pyautogui as gui
+  gui.FAILSAFE=False
   Config['imagedir']=os.path.join(Config['packagedir'],'images')
   left=Point(locate('logo')[0]-62,0)
   right=Point(locate('help')[0]+80,gui.size()[1])
@@ -264,11 +270,11 @@ def _click(clicksleep=longsleep, **kwargs):
   gui.click(pause=clicksleep)
 
 
-def _keypress(i):
+def keypress(i):
   gui.press(str(i))
 
 
-def _type_string(s, typesleep=shortsleep):
+def type_string(s, typesleep=shortsleep):
   gui.typewrite(s,interval=typesleep)
 
 
@@ -276,12 +282,16 @@ def _mark_all(spot):
   _drag(spot, spot + Point(200, 0), smooth=True)
 
 
-def clickto(point, **kwargs):
-  if type(point) is str: point=locate(point)
+def clickto(point, wait=True, **kwargs):
+  if wait:
+    _,point=waitforelement(point)
+  else:
+    point=locate(point)
   args = dict(movesleep=0.3)
   args.update(kwargs)
   _moveto(point, **args)
   _click(**kwargs)
+  _moveto(Point(0,0),**args)
 
 
 def _drag(point1, point2, smooth=False, **kwargs):
@@ -295,14 +305,17 @@ def getpos(offset=Point(0, 0)):
   return Point(*gui.position()) - offset
 
 
-def waitforelement(positive, negative=[], timeout=120, sleep=0.5):
+def waitforelement(positive, negative=[], timeout=None, sleep=0.5):
   """Wait for a :class:`ClientElement` ``positive`` at most ``timeout`` seconds and
   raise :class:`Timeout`. Return `True` if `positive` was found or
   `False` if one of the elements in ``negative`` was found during that time.
   """
+  if timeout is None:
+    timeout = int(Config['load_timeout'])
   while timeout > 0:
-    if isvisible(positive):
-      return (True, positive)
+    vis=isvisible(positive,location=True)
+    if vis:
+      return (True, vis)
     for n in negative:
       if isvisible(n):
         return (False, n)
@@ -330,7 +343,6 @@ def grab(delay=0, bbox=None):
     print(str(i) + "..")
     time.sleep(1)
   rect = tuple(bbox[0:2])+(bbox[2] - bbox[0] + 1, bbox[3] - bbox[1] + 1) if not bbox is None else None
-  logger.debug(rect)
   return gui.screenshot(region=rect)
 
 def _pil_to_numpy(pic):
@@ -352,13 +364,14 @@ def match(target, source=None, bbox=None, conf=confidence, mult=False):
   """
   if bbox is None and not global_bbox is None:
     bbox=global_bbox
+  offset=bbox.offset() if not bbox is None else Point(0,0)
   r = []
   if type(target) == list:
     for t in target:
       r.append(match(source, t, conf, mult))
     return r
   if source is None:
-    source=grab()
+    source=grab(bbox=bbox)
   if type(target) is str:
     if not target.endswith('.png'):
       target=target+'.png'
@@ -372,12 +385,12 @@ def match(target, source=None, bbox=None, conf=confidence, mult=False):
     for i in match_indices:
       (y, x) = np.unravel_index(i, result.shape)
       r.append(
-          Match(result[y, x], Point(int(x + t_width / 2), int(y + t_height / 2))))
+          Match(result[y, x], Point(int(x + t_width / 2), int(y + t_height / 2))+offset))
   else:
     (_, maxVal, _, maxLoc) = cv2.minMaxLoc(result)
     if maxVal >= conf:
       r.append(
-          Match(maxVal, Point(int(maxLoc[0] + t_width / 2), int(maxLoc[1] + t_height / 2))))
+          Match(maxVal, Point(int(maxLoc[0] + t_width / 2), int(maxLoc[1] + t_height / 2))+offset))
   return sorted(r, key=lambda r: r.conf, reverse=True)
 
 def locate(im,**kwargs):
@@ -386,10 +399,13 @@ def locate(im,**kwargs):
   except IndexError:
     raise ElementError()
 
-def isvisible(im):
+def isvisible(im, location=False):
   try:
-    locate(im)
-    return True
+    pos=locate(im)
+    if location:
+      return pos
+    else:
+      return True
   except ElementError:
     return False
 
