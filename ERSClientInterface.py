@@ -28,7 +28,7 @@ class ERSClientInterface(ClientInterface):
     self.config = self.config_parser(os.path.expanduser('~/.ersTestSuite/config.txt'))
     self.Config = dict(self.config.items('Config'))
     ClientInterface.__init__(self, self.Config['display'])
-    self.imagedir = os.path.join(self.Config['packagedir'], 'images')
+    self.imagedirs = [os.path.join(self.Config['basedir'],'images'),os.path.join(self.Config['packagedir'], 'images')]
     self.timeout = self.Config['timeout']
 
     left = Point(self.locate('logo')[0] - 62, 0)

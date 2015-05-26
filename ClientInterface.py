@@ -194,7 +194,7 @@ class ClientInterface(object):
     os.environ['DISPLAY'] = display
     import pyautogui as gui
     gui.FAILSAFE = False
-    self.imagedir = ''
+    self.imagedirs = ['']
     self.default_timeout = 10
 
 
@@ -316,7 +316,12 @@ class ClientInterface(object):
     if type(target) is str:
       if not target.endswith('.png'):
         target = target + '.png'
-      target = self._imreadRGB(os.path.join(self.imagedir, target))
+      for d in self.imagedirs:
+        try:
+          target = self._imreadRGB(os.path.join(d, target))
+          break
+        except IOError:
+          pass
     source = self._pil_to_numpy(source)
     target = self._pil_to_numpy(target)
     (t_height, t_width, _) = target.shape
@@ -407,7 +412,7 @@ class ClientInterface(object):
     """
     d = delay
     if dirname is None:
-      dirname = self.imagedir
+      dirname = self.imagedirs[0]
     if full:
       im = self.grab(delay=d)
     else:
