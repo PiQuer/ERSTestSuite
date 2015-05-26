@@ -40,6 +40,7 @@ class ERSClientInterface(ClientInterface):
     self.global_bbox = BBox(left[0], left[1], right[0], right[1])
     site_loaded = self.locate('site_loaded')
     self.loaded_bbox = (site_loaded - Point(17, 17)) * (site_loaded + Point(17, 17))
+    self.confidence = self.config.getfloat('Config','confidence')
 
   def config_parser(self, files=None):
     if files is None: files = []
@@ -50,6 +51,7 @@ basedir={basedir}
 packagedir={packagedir}
 display=:0
 timeout=10
+confidence=0.8
 [Person]
 email=disp.reg.ejc.RND@typename.de
 name=Raimar Sandner

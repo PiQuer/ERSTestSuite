@@ -23,7 +23,6 @@ logger.propagate = False
 shortsleep = 0.1
 longsleep = 0.9
 fastsleep = 0.03
-confidence = 0.8
 
 class CalibrationError(Exception):
   """This exception is raised whenever an element that was expected is not found
@@ -189,13 +188,14 @@ class Point(tuple):
 
 class ClientInterface(object):
 
-  def __init__(self, display):
+  def __init__(self, display=':0', confidence=0.8):
     global gui
     os.environ['DISPLAY'] = display
     import pyautogui as gui
     gui.FAILSAFE = False
     self.imagedirs = ['']
     self.default_timeout = 10
+    self.confidence=confidence
 
 
   def _moveto(self, point, movesleep=shortsleep, smooth=False, offset=Point(0, 0)):
@@ -234,7 +234,7 @@ class ClientInterface(object):
     args.update(kwargs)
     self._moveto(point, **args)
     self._click(**kwargs)
-    self._moveto(Point(0, 0), **args)
+    #self._moveto(Point(0, 0), **args)
 
 
   def _drag(self, point1, point2, smooth=False, **kwargs):
@@ -291,7 +291,7 @@ class ClientInterface(object):
   def _pil_to_numpy(self, pic):
     return np.array(pic)
 
-  def match(self, target, source=None, bbox=None, conf=confidence, mult=False):
+  def match(self, target, source=None, bbox=None, conf=None, mult=False):
     """Image recognition: find ``target`` in ``source``. Unfortunately, the implementation of
     pyautogui is incredibly slow :(
    
@@ -305,6 +305,7 @@ class ClientInterface(object):
     :type mult: bool
     :returns: A list of :class:`Match` objects. 
     """
+    if conf is None: conf=self.confidence
     offset = bbox.offset() if not bbox is None else Point(0, 0)
     r = []
     if type(target) == list:
