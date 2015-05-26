@@ -44,7 +44,7 @@ class ERSClientInterface(ClientInterface):
 [Config]
 basedir={basedir}
 packagedir={packagedir}
-display=:1
+display=:0
 timeout=10
 [Person]
 email=disp.reg.ejc.RND@typename.de
