@@ -7,6 +7,7 @@ Created on 23.05.2015
 import logging
 import ERSClientInterface
 import unittest
+import time
 
 # Setup logger for this module
 logger = logging.getLogger(__name__)
@@ -45,5 +46,7 @@ class OrderTestCase(unittest.TestCase):
 suite = unittest.TestLoader().loadTestsFromTestCase(OrderTestCase)
 
 if __name__ == '__main__':
+  logger.info('Sleeping 10 seconds, please bring the browser with the ERS site loaded to the front.')
+  time.sleep(10)
   CI = ERSClientInterface.ERSClientInterface()
   unittest.main()
