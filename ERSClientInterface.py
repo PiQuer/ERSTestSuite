@@ -10,6 +10,7 @@ import ConfigParser
 import logging
 import StringIO
 import random, string
+import time
 
 # Setup logger for this module
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ def randomword(length):
   return ''.join(random.choice(string.lowercase) for _ in range(length))
 
 class ERSClientInterface(ClientInterface):
-  def __init__(self):
+  def __init__(self,delay=0):
     self.global_bbox = None
     self.config = self.config_parser(os.path.expanduser('~/.ersTestSuite/config.txt'))
     self.Config = dict(self.config.items('Config'))
@@ -31,6 +32,9 @@ class ERSClientInterface(ClientInterface):
     self.imagedirs = [os.path.join(self.Config['basedir'],'images'),os.path.join(self.Config['packagedir'], 'images')]
     self.timeout = self.Config['timeout']
 
+    if delay:
+      logger.info('Sleeping {} seconds, please bring browser to front.'.format(delay))
+      time.sleep(delay)
     left = Point(self.locate('logo')[0] - 62, 0)
     right = Point(self.locate('help')[0] + 80, self.size()[1])
     self.global_bbox = BBox(left[0], left[1], right[0], right[1])
