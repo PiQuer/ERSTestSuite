@@ -54,6 +54,8 @@ confidence=0.8
 [Person]
 email=disp.reg.ejc.RND@typename.de
 name=Raimar Sandner
+creditcard_number=4111111111111111
+creditcard_sec=123
 """.format(basedir=os.path.abspath(os.path.expanduser('~/.ersTestSuite')),
            packagedir=os.path.abspath(os.path.dirname(__file__)))
     config = ConfigParser.SafeConfigParser()
@@ -169,28 +171,57 @@ name=Raimar Sandner
     else: raise NotImplementedError("Payment type {} not implemented.".format(payment))
     self.clickto('save_and_continue')
     self.clickto('i_accept')
+    return self.isvisible('amount_{}'.format(str(amount).replace('.', ',')))
+
+  def pay(self, payment='sepa'):
     self.clickto('buy_now')
-    if self.isvisible('amount_{}'.format(amount)):
-      return True
-    else:
-      return False
+    if payment == 'sepa':
+      return self.isvisible('sepa_success')
+    if payment == 'credit':
+      self.clickto('cardholder')
+      self.type_string(self.config.get('Person', 'name'))
+      self.keypress('tab')
+      self.keypress('tab')
+      self.type_string(self.config.get('Person', 'creditcard_number'))
+      self.keypress('tab')
+      self.type_string(self.config.get('Person', 'creditcard_sec'))
+      self.keypress('tab')
+      for _ in range(8): self.keypress('down')
+      self.keypress('tab');self.keypress('tab');
+      self.keypress('enter')
+      return self.isvisible('credit_success')
 
 
-  def order_ticket(self, ticket='week', name=None, email=None, age='normal', payment='sepa'):
-    amounts = {('week', 'normal'):180,
-             ('week', 'reduced'):135,
-             ('week', 'free'):0,
-             ('day', 'normal'):35,
-             ('day', 'reduced'):27,
-             ('day', 'free'):0,
-             ('gala', 'normal'):25,
-             ('gala', 'reduced'):20,
-             ('gala', 'free'):0 }
-    self.clickto('go_to_product_overview')
+  def order_ticket(self, ticket='week', name=None, email=None, age='normal', payment='sepa', login=False):
+    amounts = {'sepa':
+               {('week', 'normal'):180,
+                ('week', 'reduced'):135,
+                ('week', 'free'):0,
+                ('day', 'normal'):35,
+                ('day', 'reduced'):27,
+                ('day', 'free'):0,
+                ('gala', 'normal'):25,
+                ('gala', 'reduced'):20,
+                ('gala', 'free'):0 },
+               'credit':
+               {('week', 'normal'):184.77,
+                ('week', 'reduced'):138.58,
+                ('week', 'free'):0,
+                ('day', 'normal'):35.93,
+                ('day', 'reduced'):27.72,
+                ('day', 'free'):0,
+                ('gala', 'normal'):25.66,
+                ('gala', 'reduced'):20.53,
+                ('gala', 'free'):0}
+              }
+    if login:
+      self.login()
+    self.clickto('products')
     if   ticket == 'week': self.select_week_ticket(name=name, email=email, age=age)
     elif ticket == 'day' : self.select_day_ticket(name=name, email=email, age=age)
     elif ticket == 'gala': self.select_gala_ticket(name=name, email=email, age=age)
     else: raise NotImplementedError("Ticket type {} not implemented.".format(ticket))
     self.clickto('add_to_cart')
     self.clickto('shopping_cart_next')
-    return self.checkout(amount=amounts[(ticket, age)], payment=payment)
+    if not self.checkout(amount=amounts[payment][(ticket, age)], payment=payment): return False
+    return self.pay(payment=payment)
