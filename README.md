@@ -5,6 +5,7 @@ Automatic Testsuite for the ers project.
 * [pyautogui](https://github.com/asweigart/pyautogui)
 * [numpy](http://www.numpy.org/)
 * [opencv2](http://opencv.org/), which comes with python bindings
+
 Only tested under Linux.
 
 ## Configuration
