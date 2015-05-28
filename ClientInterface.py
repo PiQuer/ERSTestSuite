@@ -195,7 +195,7 @@ class ClientInterface(object):
     gui.FAILSAFE = False
     self.imagedirs = ['']
     self.default_timeout = 10
-    self.confidence=confidence
+    self.confidence = confidence
 
 
   def _moveto(self, point, movesleep=shortsleep, smooth=False, offset=Point(0, 0)):
@@ -235,7 +235,7 @@ class ClientInterface(object):
     args.update(kwargs)
     self._moveto(point, **args)
     self._click(**kwargs)
-    #self._moveto(Point(0, 0), **args)
+    # self._moveto(Point(0, 0), **args)
 
 
   def _drag(self, point1, point2, smooth=False, **kwargs):
@@ -306,7 +306,7 @@ class ClientInterface(object):
     :type mult: bool
     :returns: A list of :class:`Match` objects. 
     """
-    if conf is None: conf=self.confidence
+    if conf is None: conf = self.confidence
     offset = bbox.offset() if not bbox is None else Point(0, 0)
     r = []
     if type(target) == list:
