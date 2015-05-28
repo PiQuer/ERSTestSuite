@@ -39,7 +39,7 @@ class ClientInconsistency(Exception):
 
 class Timeout(Exception):
   """This exception is raised if we have waited too long for a client element to become
-  visible (for example when opening an offer from the mailbox).
+  visible.
   """
   pass
 
