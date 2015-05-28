@@ -289,10 +289,11 @@ class ClientInterface(object):
     rect = tuple(bbox[0:2]) + (bbox[2] - bbox[0] + 1, bbox[3] - bbox[1] + 1) if not bbox is None else None
     return gui.screenshot(region=rect)
 
-  def _pil_to_numpy(self, pic):
-    return np.array(pic)
+  def _pil_to_numpy(self, pic, gray=True):
+    result = np.array(pic)
+    return cv2.cvtColor(result, cv2.COLOR_BGR2GRAY) if gray else result
 
-  def match(self, target, source=None, bbox=None, conf=None, mult=False):
+  def match(self, target, source=None, bbox=None, conf=None, mult=False, gray=True):
     """Image recognition: find ``target`` in ``source``. Unfortunately, the implementation of
     pyautogui is incredibly slow :(
    
@@ -324,9 +325,9 @@ class ClientInterface(object):
           break
         except IOError:
           pass
-    source = self._pil_to_numpy(source)
-    target = self._pil_to_numpy(target)
-    (t_height, t_width, _) = target.shape
+    source = self._pil_to_numpy(source, gray=gray)
+    target = self._pil_to_numpy(target, gray=gray)
+    (t_height, t_width) = target.shape[:2]
     result = cv2.matchTemplate(source, target, cv2.TM_CCOEFF_NORMED)
     if mult:
       match_indices = np.arange(result.size)[(result > conf).flatten()]
