@@ -213,8 +213,9 @@ class ClientInterface(object):
     gui.click(pause=clicksleep)
 
 
-  def keypress(self, i):
+  def keypress(self, i, s=shortsleep):
     gui.press(str(i))
+    time.sleep(s)
 
 
   def type_string(self, s, typesleep=shortsleep):
