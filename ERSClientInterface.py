@@ -98,6 +98,14 @@ name=Raimar Sandner
     self.type_string(email)
     self.keypress('tab')
 
+  def login(self):
+    self.clickto('login')
+    self.clickto('email')
+    self.type_string(self.config.get('Config', 'username'))
+    self.keypress('tab', s=0.5)
+    self.type_string(self.config.get('Config', 'password'))
+    self.keypress('enter')
+    self.waitforelement('my_profile')
   def add_person(self, name=None, email=None, age='normal', if_necessary=True):
     if if_necessary:
       if not self.isvisible('add_a_new_person'):
