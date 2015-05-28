@@ -24,13 +24,12 @@ def randomword(length):
   return ''.join(random.choice(string.lowercase) for _ in range(length))
 
 class ERSClientInterface(ClientInterface):
-  def __init__(self,delay=0):
+  def __init__(self, delay=0):
     self.global_bbox = None
     self.config = self.config_parser(os.path.expanduser('~/.ersTestSuite/config.txt'))
-    self.Config = dict(self.config.items('Config'))
-    ClientInterface.__init__(self, self.Config['display'])
-    self.imagedirs = [os.path.join(self.Config['basedir'],'images'),os.path.join(self.Config['packagedir'], 'images')]
-    self.timeout = self.Config['timeout']
+    ClientInterface.__init__(self, self.config.get('Config', 'display'))
+    self.imagedirs = [os.path.join(self.config.get('Config', 'basedir'), 'images'), os.path.join(self.config.get('Config', 'packagedir'), 'images')]
+    self.timeout = self.config.get('Config', 'timeout')
 
     if delay:
       logger.info('Sleeping {} seconds, please bring browser to front.'.format(delay))
@@ -40,7 +39,7 @@ class ERSClientInterface(ClientInterface):
     self.global_bbox = BBox(left[0], left[1], right[0], right[1])
     site_loaded = self.locate('site_loaded')
     self.loaded_bbox = (site_loaded - Point(17, 17)) * (site_loaded + Point(17, 17))
-    self.confidence = self.config.getfloat('Config','confidence')
+    self.confidence = self.config.getfloat('Config', 'confidence')
 
   def config_parser(self, files=None):
     if files is None: files = []
