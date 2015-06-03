@@ -57,6 +57,12 @@ class OrderTestCase(unittest.TestCase):
     self.assertTrue(CI.order_ticket(ticket='gala', age='reduced', payment='credit'))
   def test_ticket_order_gala_free_sepa(self):
     self.assertTrue(CI.order_ticket(ticket='gala', age='free', payment='sepa'))
+  def test_two_weektickets(self):
+    self.assertTrue(CI.order_two_weektickets())
+  def test_week_and_day(self):
+    self.assertTrue(CI.order_week_and_day())
+  def test_two_daytickets(self):
+    self.assertTrue(CI.order_two_daytickets())
 
 
 suite = unittest.TestLoader().loadTestsFromTestCase(OrderTestCase)

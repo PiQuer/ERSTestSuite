@@ -53,7 +53,8 @@ timeout=10
 confidence=0.8
 [Person]
 email=disp.reg.ejc.RND@typename.de
-name=Raimar Sandner
+name1=Raimar Sandner
+name2=Foo Bar
 creditcard_number=4111111111111111
 creditcard_sec=123
 """.format(basedir=os.path.abspath(os.path.expanduser('~/.ersTestSuite')),
@@ -85,9 +86,10 @@ creditcard_sec=123
     self.clickto('logo')
     self.wait_site_loaded()
 
-  def _enter_name(self, name=None):
+  def _enter_name(self, name=None, person_id=None):
     if name is None:
-      name = self.config.get('Person', 'name')
+      if person_id is None: person_id = 1
+      name = self.config.get('Person', 'name' + str(person_id))
     self.clickto('first_name')
     self.type_string(name.split()[0])
     self.keypress('tab')
@@ -109,13 +111,12 @@ creditcard_sec=123
     self.keypress('enter')
     self.waitforelement('my_profile')
 
-  def add_person(self, name=None, email=None, age='normal', if_necessary=True):
+  def add_person(self, name=None, email=None, age='normal', person_id=None, if_necessary=True):
     if if_necessary:
       if self.isvisible('this_ticket'):
         return
-      else:
-        self.clickto('add_a_new_person')
-    self._enter_name(name=name)
+    self.clickto('add_a_new_person')
+    self._enter_name(name=name, person_id=person_id)
     if age == 'normal':
       self.type_string('1.1.1980')
     elif age == 'reduced':
@@ -128,29 +129,29 @@ creditcard_sec=123
     self.keypress('down')
     self.clickto('save')
 
-  def add_buyer(self, name=None, email=None):
+  def add_buyer(self, name=None, email=None, person_id=None):
     self.clickto('add_buyer')
-    self._enter_name(name=name)
+    self._enter_name(name=name, person_id=None)
     self._enter_email(email=email)
     self.keypress('enter')
 
-  def select_week_ticket(self, name=None, email=None, age='normal'):
+  def select_week_ticket(self, name=None, email=None, age='normal', always_add=False, person_id=None):
     self.clickto('week_ticket')
-    self.add_person(name=name, email=email, age=age, if_necessary=True)
+    self.add_person(name=name, email=email, age=age, if_necessary=not always_add, person_id=person_id)
     self.clickto('show')
     self.keypress('down')
     self.keypress('enter')
 
-  def select_day_ticket(self, name=None, email=None, age='normal'):
+  def select_day_ticket(self, name=None, email=None, age='normal', always_add=False, person_id=None, day=2):
     self.clickto('day_ticket')
-    self.add_person(name=name, email=email, age=age, if_necessary=True)
+    self.add_person(name=name, email=email, age=age, if_necessary=not always_add, person_id=None)
     self.clickto('day')
-    self.keypress('down')
-    self.keypress('down')
+    for _ in range(day):
+      self.keypress('down')
     self.keypress('enter')
     self.wait_site_loaded()
 
-  def select_gala_ticket(self, name=None, email=None, age='normal'):
+  def select_gala_ticket(self, age='normal'):
     self.clickto('gala_show_ticket')
     self.clickto('gala_{}'.format(age))
     self.clickto('show')
@@ -226,3 +227,36 @@ creditcard_sec=123
     self.clickto('shopping_cart_next')
     if not self.checkout(amount=amounts[payment][(ticket, age)], payment=payment): return False
     return self.pay(payment=payment)
+
+  def order_two_weektickets(self):
+    self.clickto('products')
+    self.select_week_ticket(person_id=1)
+    self.clickto('add_to_cart')
+    self.clickto('add_more_products')
+    self.select_week_ticket(person_id=2, always_add=True)
+    self.clickto('add_to_cart')
+    self.clickto('shopping_cart_next')
+    if not self.checkout(amount=360, payment='sepa'): return False
+    return self.pay(payment='sepa')
+
+  def order_week_and_day(self):
+    self.clickto('products')
+    self.select_week_ticket(person_id=1)
+    self.clickto('add_to_cart')
+    self.clickto('add_more_products')
+    self.select_day_ticket(person_id=2, always_add=True)
+    self.clickto('add_to_cart')
+    self.clickto('shopping_cart_next')
+    if not self.checkout(amount=215, payment='sepa'): return False
+    return self.pay(payment='sepa')
+
+  def order_two_daytickets(self):
+    self.clickto('products')
+    self.select_day_ticket(day=2)
+    self.clickto('add_to_cart')
+    self.clickto('add_more_products')
+    self.select_day_ticket(day=3)
+    self.clickto('add_to_cart')
+    self.clickto('shopping_cart_next')
+    if not self.checkout(amount=70, payment='sepa'): return False
+    return self.pay(payment='sepa')
