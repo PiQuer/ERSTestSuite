@@ -325,6 +325,8 @@ class ClientInterface(object):
           break
         except IOError:
           pass
+    if type(target) is str:
+      raise IOError('Could not load {} in {}.'.format(target, ', '.join(self.imagedirs)))
     source = self._pil_to_numpy(source, gray=gray)
     target = self._pil_to_numpy(target, gray=gray)
     (t_height, t_width) = target.shape[:2]
