@@ -213,8 +213,11 @@ class ClientInterface(object):
     gui.click(pause=clicksleep)
 
 
-  def keypress(self, i, s=shortsleep):
-    gui.press(str(i))
+  def keypress(self, i, s=shortsleep, modifier=None):
+    if not modifier is None:
+      gui.hotkey(modifier, i)
+    else:
+      gui.press(str(i))
     time.sleep(s)
 
 
