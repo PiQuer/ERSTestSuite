@@ -181,7 +181,7 @@ creditcard_sec=123
       return self.isvisible('sepa_success')
     if payment == 'credit':
       self.clickto('cardholder')
-      self.type_string(self.config.get('Person', 'name'))
+      self.type_string(self.config.get('Person', 'name1'))
       self.keypress('tab')
       self.keypress('tab')
       self.type_string(self.config.get('Person', 'creditcard_number'))
@@ -221,7 +221,7 @@ creditcard_sec=123
     self.clickto('products')
     if   ticket == 'week': self.select_week_ticket(name=name, email=email, age=age)
     elif ticket == 'day' : self.select_day_ticket(name=name, email=email, age=age)
-    elif ticket == 'gala': self.select_gala_ticket(name=name, email=email, age=age)
+    elif ticket == 'gala': self.select_gala_ticket(age=age)
     else: raise NotImplementedError("Ticket type {} not implemented.".format(ticket))
     self.clickto('add_to_cart')
     self.clickto('shopping_cart_next')
