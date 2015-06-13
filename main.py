@@ -30,8 +30,8 @@ class OrderTestCase(unittest.TestCase):
     self.CI.go_home()
   def test_ticket_order_week_normal_sepa(self):
     self.assertTrue(self.CI.order_ticket(ticket='week',age='normal',payment='sepa'))
-  def test_ticket_order_week_normal_sepa_login(self):
-    self.assertTrue(self.CI.order_ticket(ticket='week',age='normal',payment='sepa',login=True))
+  # def test_ticket_order_week_normal_sepa_login(self):
+  #  self.assertTrue(self.CI.order_ticket(ticket='week',age='normal',payment='sepa',login=True))
   def test_ticket_order_week_normal_credit(self):
     self.assertTrue(self.CI.order_ticket(ticket='week',age='normal',payment='credit'))
   def test_ticket_order_week_reduced_sepa(self):
