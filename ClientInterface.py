@@ -20,7 +20,7 @@ logger.setLevel(logging.DEBUG)
 logger.handlers = [handler]
 logger.propagate = False
 
-shortsleep = 0.1
+shortsleep=0.15
 longsleep = 0.9
 fastsleep = 0.03
 
